@@ -2,10 +2,12 @@ import socket
 import time
 import os
 import sys
+from flask import Flask, request, abort
 
 ip_address = os.getenv('IP_ADDRESS')
 port = os.getenv('PORT', '13013')  # Default to 13013 if PORT is not specified
 target_pwr = os.getenv('TARGET_PWR')
+api_key = os.getenv('API_KEY')
 
 # Exit if no IP address or target_pwr is specified
 if not ip_address:
@@ -26,6 +28,23 @@ except ValueError:
 print(f"Using IP: {ip_address}")
 print(f"Using Port: {port}")
 print(f"Using Target Power: {target_pwr}")
+
+def create_app():
+    app = Flask(__name__)
+
+    @app.route('/api/power', methods=['GET', 'POST'])
+    def power():
+        global target_pwr
+        if request.method == 'GET':
+            return {'target_power': target_pwr}
+        elif request.method == 'POST':
+            data = request.get_json()
+            if 'api_key' not in data or data['api_key'] != api_key:
+                abort(401)
+            target_pwr = data.get('target_power')
+            return {'message': 'Target power updated successfully'}
+
+    return app
 
 def send_command(sock, command, prefix = "", suffix = "", read_response = True):
     try:
@@ -81,5 +100,9 @@ def main(ip, port):
         except Exception as e:
             print("failed to connect or error during the session:", str(e))
 
-# Run the main function
-main(ip_address, port)
+if __name__ == '__main__':
+    from threading import Thread
+    app = create_app()
+    flask_thread = Thread(target=lambda: app.run(host='0.0.0.0', port=5000))
+    flask_thread.start()
+    main(ip_address, port)
