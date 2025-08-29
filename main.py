@@ -58,8 +58,7 @@ def validate_environment():
     logger.info(f"Configuration - IP: {ip_address}, Port: {port}, Target Power: {target_pwr}W")
     return ip_address, port, target_pwr
 
-# Get configuration
-ip_address, port, target_pwr = validate_environment()
+# Get configuration only when running as main script
 
 def send_command(sock, command, prefix="", suffix="", read_response=True):
     """
@@ -223,4 +222,5 @@ def main(ip, port):
 
 
 if __name__ == "__main__":
+    ip_address, port, target_pwr = validate_environment()
     main(ip_address, port)
