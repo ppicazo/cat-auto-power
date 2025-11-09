@@ -3,7 +3,7 @@ import time
 import os
 import sys
 from collections import deque
-from datetime import datetime
+from threading import Lock
 from flask import Flask, request, abort, jsonify, render_template_string
 
 ip_address = os.getenv('IP_ADDRESS')
@@ -11,13 +11,17 @@ port = os.getenv('PORT', '13013')  # Default to 13013 if PORT is not specified
 target_pwr = os.getenv('TARGET_PWR')
 api_key = os.getenv('API_KEY')
 
-# Exit if no IP address or target_pwr is specified
+# Exit if no IP address, target_pwr, or api_key is specified
 if not ip_address:
     print("No IP address specified. Exiting...")
     sys.exit(1)
 
 if not target_pwr:
     print("No target power specified. Exiting...")
+    sys.exit(1)
+
+if not api_key:
+    print("No API key specified. Exiting...")
     sys.exit(1)
 
 try:
@@ -30,6 +34,10 @@ except ValueError:
 print(f"Using IP: {ip_address}")
 print(f"Using Port: {port}")
 print(f"Using Target Power: {target_pwr}")
+
+# Thread locks for synchronizing access to shared resources
+target_pwr_lock = Lock()
+history_lock = Lock()
 
 # Store historical data (up to 1000 data points)
 history = deque(maxlen=1000)
@@ -336,17 +344,32 @@ def create_app():
     def power():
         global target_pwr
         if request.method == 'GET':
-            return {'target_power': target_pwr}
+            with target_pwr_lock:
+                return jsonify({'target_power': target_pwr})
         elif request.method == 'POST':
             data = request.get_json()
             if 'api_key' not in data or data['api_key'] != api_key:
                 abort(401)
-            target_pwr = data.get('target_power')
-            return {'message': 'Target power updated successfully'}
+            
+            # Validate 'target_power'
+            if 'target_power' not in data:
+                return jsonify({'error': "'target_power' field is required"}), 400
+            try:
+                target_power_val = int(data['target_power'])
+            except (ValueError, TypeError):
+                return jsonify({'error': "'target_power' must be an integer"}), 400
+            # Acceptable bounds: 0 <= target_power <= 10000
+            if not (0 <= target_power_val <= 10000):
+                return jsonify({'error': "'target_power' must be between 0 and 10000"}), 400
+            
+            with target_pwr_lock:
+                target_pwr = target_power_val
+            return jsonify({'message': 'Target power updated successfully'})
 
     @app.route('/api/history', methods=['GET'])
     def get_history():
-        return jsonify(list(history))
+        with history_lock:
+            return jsonify(list(history))
 
     return app
 
@@ -384,15 +407,20 @@ def main(ip, port):
                     print("Power Output:", pwr_response, " W")
                     current_pwr = int(pwr_response)
                     
-                    # Add data point to history
-                    history.append({
-                        'timestamp': time.time(),
-                        'power': current_pwr,
-                        'target': target_pwr,
-                        'drive': current_drive
-                    })
+                    # Add data point to history with thread safety
+                    with history_lock:
+                        history.append({
+                            'timestamp': time.time(),
+                            'power': current_pwr,
+                            'target': target_pwr,
+                            'drive': current_drive
+                        })
                     
-                    if current_pwr > target_pwr or current_pwr < target_pwr:
+                    # Read target power with thread safety
+                    with target_pwr_lock:
+                        current_target_pwr = target_pwr
+                    
+                    if current_pwr > current_target_pwr or current_pwr < current_target_pwr:
                         current_drive_response = send_command(sock, 'ZZPC;', "ZZPC", ";")
                         if current_drive_response:
                             current_drive = int(current_drive_response)
@@ -401,12 +429,12 @@ def main(ip, port):
                                 print("changing drive from ", current_drive, " to ", next_drive)
                                 send_command(sock, 'ZZPC' + str(next_drive).zfill(3) + ';', "", "", False)
                                 current_drive = next_drive
-                            elif (current_pwr > target_pwr):
+                            elif (current_pwr > current_target_pwr):
                                 next_drive = current_drive - 1
                                 print("changing drive from ", current_drive, " to ", next_drive)
                                 send_command(sock, 'ZZPC' + str(next_drive).zfill(3) + ';', "", "", False)
                                 current_drive = next_drive
-                            elif (current_pwr > 3 and current_pwr < target_pwr):
+                            elif (current_pwr > 3 and current_pwr < current_target_pwr):
                                 next_drive = current_drive + 1
                                 print("changing drive from ", current_drive, " to ", next_drive)
                                 send_command(sock, 'ZZPC' + str(next_drive).zfill(3) + ';', "", "", False)
