@@ -61,7 +61,17 @@ python main.py
 
 The script now includes a REST API to set and get the desired power level on the fly using Flask.
 
-### Endpoints
+### Web Dashboard
+
+Access the web dashboard by opening a browser and navigating to `http://<your_ip_address>:5000/`
+
+The dashboard provides:
+- A form to change the target power level
+- Real-time visualization of power output history with target power overlay
+- Real-time visualization of drive settings history
+- Current target power display
+
+### API Endpoints
 
 - `GET /api/power`: Returns the current target power level.
 - `POST /api/power`: Sets a new target power level. The request body should be in JSON format and include the `target_power` and `api_key` fields.
