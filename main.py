@@ -422,5 +422,6 @@ if __name__ == '__main__':
     from threading import Thread
     app = create_app()
     flask_thread = Thread(target=lambda: app.run(host='0.0.0.0', port=5000))
+    flask_thread.daemon = True
     flask_thread.start()
     main(ip_address, port)
