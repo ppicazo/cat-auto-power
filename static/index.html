@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cat Control Auto Power</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="number"], input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .current-value {
+            font-size: 18px;
+            color: #333;
+            margin-top: 10px;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        canvas {
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cat Control Auto Power</h1>
+    <div class="control-panel">
+        <h2>Control Panel</h2>
+        <div class="current-value" style="margin-top: 20px;">
+            Current Target Power: <strong id="currentTarget">Loading...</strong> W
+        </div>
+        <form id="powerForm">
+            <div class="form-group">
+                <div style="position: relative; width: 100%; margin-bottom: 50px; margin-top: 10px; padding: 0;">
+                    <div id="sliderValueBubble" style="position: absolute; top: -38px; left: 0; font-size: 16px; font-weight: bold; color: #007bff; pointer-events: none; background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.10); padding: 4px 16px; border: 1px solid #e0e0e0; transition: left 0.1s;">10 W</div>
+                    <input type="range" id="targetPowerSlider" name="targetPowerSlider" min="1" max="25" value="10" step="1" list="powerTicks" style="width: 100%; margin: 0; accent-color: #007bff; height: 32px; padding: 0;">
+                    <datalist id="powerTicks">
+                        <!-- Notches for every watt -->
+                        <option value="1"></option>
+                        <option value="2"></option>
+                        <option value="3"></option>
+                        <option value="4"></option>
+                        <option value="5"></option>
+                        <option value="6"></option>
+                        <option value="7"></option>
+                        <option value="8"></option>
+                        <option value="9"></option>
+                        <option value="10"></option>
+                        <option value="11"></option>
+                        <option value="12"></option>
+                        <option value="13"></option>
+                        <option value="14"></option>
+                        <option value="15"></option>
+                        <option value="16"></option>
+                        <option value="17"></option>
+                        <option value="18"></option>
+                        <option value="19"></option>
+                        <option value="20"></option>
+                        <option value="21"></option>
+                        <option value="22"></option>
+                        <option value="23"></option>
+                        <option value="24"></option>
+                        <option value="25"></option>
+                    </datalist>
+                    <div id="sliderLabels" style="position: absolute; top: 32px; left: 0; width: 100%; height: 24px; margin-top: 0; pointer-events: none;">
+                        <!-- Labels will be injected by JS for perfect alignment -->
+                    </div>
+                </div>
+            </div>
+            <div class="form-group" style="display:none;" id="apiKeyGroup">
+                <label for="apiKey">API Key:</label>
+                <input type="text" id="apiKey" name="apiKey" value="" required>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button type="submit" style="font-size:20px;padding:15px 30px;background:#28a745;flex-grow:1;">Set Power Target</button>
+                <button type="button" id="configBtn" style="font-size:20px;padding:15px 20px;background:#6c757d;">⚙️</button>
+            </div>
+        </form>
+        <div id="message" class="message"></div>
+    </div>
+    <div class="chart-container">
+        <h2>Power Output History</h2>
+        <canvas id="powerChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h2>Drive Settings History</h2>
+        <canvas id="driveChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h2>SWR History</h2>
+        <canvas id="swrChart"></canvas>
+    </div>
+    <script>
+        // Slider value bubble positioning
+        const slider = document.getElementById('targetPowerSlider');
+        const bubble = document.getElementById('sliderValueBubble');
+        const labels = [1, 5, 10, 15, 20, 25];  // Only major ticks
+        const sliderLabels = document.getElementById('sliderLabels');
+        
+        function setBubble() {
+            const val = parseInt(slider.value);
+            const percent = (val - slider.min) / (slider.max - slider.min);
+            bubble.textContent = val + ' W';
+            
+            const knobX = percent * (slider.offsetWidth - 16) + 8;
+            let left = knobX - bubble.offsetWidth / 2;
+            // Clamp at edges
+            left = Math.max(0, Math.min(left, slider.offsetWidth - bubble.offsetWidth));
+            bubble.style.left = left + 'px';
+        }
+        
+        function setLabels() {
+            sliderLabels.innerHTML = '';
+            labels.forEach(label => {
+                const percent = (label - slider.min) / (slider.max - slider.min);
+                const labelX = percent * (slider.offsetWidth - 16) + 8;
+                const span = document.createElement('span');
+                span.textContent = label + 'W';
+                span.style.cssText = `position:absolute;left:${labelX}px;transform:translateX(-50%);font-size:13px;color:#333;`;
+                sliderLabels.appendChild(span);
+            });
+        }
+        
+        slider.addEventListener('input', setBubble);
+        window.addEventListener('resize', () => { setBubble(); setLabels(); });
+        setBubble();
+        setLabels();
+        
+        // Load API key from localStorage
+        const apiKeyInput = document.getElementById('apiKey');
+        const savedApiKey = localStorage.getItem('apiKey') || 'foo';
+        apiKeyInput.value = savedApiKey;
+        
+        // Config button to toggle API key input
+        document.getElementById('configBtn').addEventListener('click', () => {
+            const apiKeyGroup = document.getElementById('apiKeyGroup');
+            apiKeyGroup.style.display = apiKeyGroup.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        let powerChart, driveChart, swrChart;
+        function initCharts() {
+            const powerCtx = document.getElementById('powerChart').getContext('2d');
+            powerChart = new Chart(powerCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Power Output (W)',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1
+                    }, {
+                        label: 'Target Power (W)',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        borderDash: [5, 5],
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Power (W)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    }
+                }
+            });
+            const driveCtx = document.getElementById('driveChart').getContext('2d');
+            driveChart = new Chart(driveCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Drive Setting',
+                        data: [],
+                        borderColor: 'rgb(153, 102, 255)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                        tension: 0.1,
+                        stepped: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Drive Level'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            const swrCtx = document.getElementById('swrChart').getContext('2d');
+            swrChart = new Chart(swrCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'SWR',
+                        data: [],
+                        borderColor: 'rgb(255, 159, 64)',
+                        backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'SWR'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        function fetchCurrentTarget() {
+            fetch('/api/power')
+                .then(response => response.json())
+                .then(data => document.getElementById('currentTarget').textContent = data.target_power)
+                .catch(error => console.error('Error fetching target power:', error));
+        }
+        function fetchHistory() {
+            fetch('/api/history')
+                .then(response => response.json())
+                .then(data => {
+                    const labels = data.map(item => {
+                        const date = new Date(item.timestamp * 1000);
+                        return date.toLocaleTimeString();
+                    });
+                    const powerData = data.map(item => item.power);
+                    const targetData = data.map(item => item.target);
+                    const driveData = data.map(item => item.drive);
+                    const swrData = data.map(item => item.swr || 0);
+                    
+                    powerChart.data.labels = labels;
+                    powerChart.data.datasets[0].data = powerData;
+                    powerChart.data.datasets[1].data = targetData;
+                    powerChart.update('none');
+                    
+                    driveChart.data.labels = labels;
+                    driveChart.data.datasets[0].data = driveData;
+                    driveChart.update('none');
+                    
+                    swrChart.data.labels = labels;
+                    swrChart.data.datasets[0].data = swrData;
+                    swrChart.update('none');
+                })
+                .catch(error => {
+                    console.error('Error fetching history:', error);
+                });
+        }
+        document.getElementById('powerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const messageDiv = document.getElementById('message');
+            const apiKey = apiKeyInput.value;
+            
+            // Save API key to localStorage
+            localStorage.setItem('apiKey', apiKey);
+            
+            fetch('/api/power', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target_power: parseInt(slider.value),
+                    api_key: apiKey
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Invalid API key or request failed');
+                return response.json();
+            })
+            .then(data => {
+                fetchCurrentTarget();
+            })
+            .catch(error => {
+                messageDiv.textContent = 'Error: ' + error.message;
+                messageDiv.className = 'message error';
+                messageDiv.style.display = 'block';
+                setTimeout(() => messageDiv.style.display = 'none', 3000);
+            });
+        });
+        initCharts();
+        fetchCurrentTarget();
+        fetchHistory();
+        setInterval(fetchHistory, 2000);
+        setInterval(fetchCurrentTarget, 5000);
+    </script>
+</body>
+</html>
