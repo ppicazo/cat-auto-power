@@ -1,385 +1,739 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Cat Control Auto Power</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CAT Auto Power Control</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#2c7a7b">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        .control-panel {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .chart-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
-        }
-        input[type="number"], input[type="password"], input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
         }
-        button {
-            background-color: #4CAF50;
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            color: #e2e8f0;
+            padding: 1rem;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #48bb78;
+        }
+        
+        .frequency-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(56, 161, 105, 0.2);
+            border: 1px solid #38a169;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        .band-tag {
+            background: #38a169;
             color: white;
-            padding: 10px 20px;
-            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .control-panel {
+            background: rgba(45, 55, 72, 0.7);
+            border: 1px solid #4a5568;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .slider-container {
+            margin-bottom: 1rem;
+        }
+        
+        .slider-container label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #a0aec0;
+        }
+        
+        .slider-wrapper {
+            position: relative;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
             border-radius: 4px;
+            background: #4a5568;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #48bb78;
             cursor: pointer;
-            font-size: 16px;
+            box-shadow: 0 2px 8px rgba(72, 187, 120, 0.5);
+            transition: transform 0.2s;
         }
-        button:hover {
-            background-color: #45a049;
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
         }
-        .current-value {
-            font-size: 18px;
-            color: #333;
-            margin-top: 10px;
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #48bb78;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(72, 187, 120, 0.5);
+            transition: transform 0.2s;
         }
-        .message {
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 4px;
-            display: none;
+        
+        input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.1);
         }
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        
+        .slider-value {
+            position: absolute;
+            top: -2.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #48bb78;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        
+        .slider-value::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #48bb78;
         }
-        canvas {
-            max-height: 400px;
+        
+        .api-key-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .api-key-group input[type="text"] {
+            flex: 1;
+            padding: 0.75rem;
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 0.5rem;
+            color: #e2e8f0;
+            font-size: 0.875rem;
+        }
+        
+        .api-key-group input[type="text"]::placeholder {
+            color: #718096;
+        }
+        
+        .api-key-group button {
+            padding: 0.75rem 1.5rem;
+            background: #48bb78;
+            border: none;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.875rem;
+        }
+        
+        .api-key-group button:hover {
+            background: #38a169;
+        }
+        
+        .api-key-display {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .api-key-masked {
+            flex: 1;
+            padding: 0.75rem;
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 0.5rem;
+            color: #a0aec0;
+            font-size: 0.875rem;
+            font-family: monospace;
+        }
+        
+        .gear-button {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: #4a5568;
+            border: none;
+            border-radius: 0.5rem;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .gear-button:hover {
+            background: #718096;
+        }
+        
+        .power-controls {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+        
+        .confirm-button {
+            padding: 0.75rem 1.5rem;
+            background: #48bb78;
+            border: none;
+            border-radius: 0.5rem;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+        
+        .confirm-button:hover {
+            background: #38a169;
+        }
+        
+        .confirm-button:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        /* Desktop Layout */
+        @media (min-width: 768px) {
+            .charts-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .chart-card {
+                background: rgba(45, 55, 72, 0.7);
+                border: 1px solid #4a5568;
+                border-radius: 1rem;
+                padding: 1.5rem;
+                backdrop-filter: blur(10px);
+            }
+            
+            .chart-card h2 {
+                font-size: 1rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+                color: #a0aec0;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            
+            .chart-container {
+                position: relative;
+                height: 300px;
+            }
+            
+            .gauges {
+                display: none;
+            }
+        }
+        
+        /* Mobile Layout */
+        @media (max-width: 767px) {
+            .charts-grid {
+                display: none;
+            }
+            
+            .gauges {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+                margin-top: 1.5rem;
+            }
+            
+            .gauge-card {
+                background: rgba(45, 55, 72, 0.7);
+                border: 1px solid #4a5568;
+                border-radius: 1rem;
+                padding: 1.5rem;
+                text-align: center;
+                backdrop-filter: blur(10px);
+            }
+            
+            .gauge-card h3 {
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #a0aec0;
+                margin-bottom: 0.5rem;
+            }
+            
+            .gauge-value {
+                font-size: 2rem;
+                font-weight: 700;
+                color: #48bb78;
+                line-height: 1;
+            }
+            
+            .gauge-unit {
+                font-size: 0.875rem;
+                color: #a0aec0;
+                margin-top: 0.25rem;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Cat Control Auto Power</h1>
-    <div class="control-panel">
-        <h2>Control Panel</h2>
-        <div class="current-value" style="margin-top: 20px;">
-            Current Target Power: <strong id="currentTarget">Loading...</strong> W
-        </div>
-        <form id="powerForm">
-            <div class="form-group">
-                <div style="position: relative; width: 100%; margin-bottom: 50px; margin-top: 10px; padding: 0;">
-                    <div id="sliderValueBubble" style="position: absolute; top: -38px; left: 0; font-size: 16px; font-weight: bold; color: #007bff; pointer-events: none; background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.10); padding: 4px 16px; border: 1px solid #e0e0e0; transition: left 0.1s;">10 W</div>
-                    <input type="range" id="targetPowerSlider" name="targetPowerSlider" min="1" max="25" value="10" step="1" list="powerTicks" style="width: 100%; margin: 0; accent-color: #007bff; height: 32px; padding: 0;">
-                    <datalist id="powerTicks">
-                        <!-- Notches for every watt -->
-                        <option value="1"></option>
-                        <option value="2"></option>
-                        <option value="3"></option>
-                        <option value="4"></option>
-                        <option value="5"></option>
-                        <option value="6"></option>
-                        <option value="7"></option>
-                        <option value="8"></option>
-                        <option value="9"></option>
-                        <option value="10"></option>
-                        <option value="11"></option>
-                        <option value="12"></option>
-                        <option value="13"></option>
-                        <option value="14"></option>
-                        <option value="15"></option>
-                        <option value="16"></option>
-                        <option value="17"></option>
-                        <option value="18"></option>
-                        <option value="19"></option>
-                        <option value="20"></option>
-                        <option value="21"></option>
-                        <option value="22"></option>
-                        <option value="23"></option>
-                        <option value="24"></option>
-                        <option value="25"></option>
-                    </datalist>
-                    <div id="sliderLabels" style="position: absolute; top: 32px; left: 0; width: 100%; height: 24px; margin-top: 0; pointer-events: none;">
-                        <!-- Labels will be injected by JS for perfect alignment -->
-                    </div>
+    <div class="container">
+        <header>
+            <h1>
+                CAT Auto Power Control
+            </h1>
+            <div class="frequency-badge">
+                <span id="frequency">---.--- MHz</span>
+                <span class="band-tag" id="band">--</span>
+            </div>
+        </header>
+        
+        <div class="control-panel">
+            <div class="slider-container">
+                <label for="targetPower">Target Power</label>
+                <div class="slider-wrapper">
+                    <div class="slider-value" id="powerValue">10 W</div>
+                    <input type="range" id="targetPower" min="1" max="25" value="10">
+                </div>
+                <div class="power-controls">
+                    <button class="confirm-button" id="confirmPower" onclick="confirmPower()" disabled>Set Power</button>
+                    <button class="gear-button" id="gearIcon" onclick="editApiKey()" title="Edit API Key" style="display: none;">⚙️</button>
                 </div>
             </div>
-            <div class="form-group" style="display:none;" id="apiKeyGroup">
-                <label for="apiKey">API Key:</label>
-                <input type="text" id="apiKey" name="apiKey" value="" required>
-            </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button type="submit" style="font-size:20px;padding:15px 30px;background:#28a745;flex-grow:1;">Set Power Target</button>
-                <button type="button" id="configBtn" style="font-size:20px;padding:15px 20px;background:#6c757d;">⚙️</button>
-            </div>
-        </form>
-        <div id="message" class="message"></div>
-    </div>
-    <div class="chart-container">
-        <h2>Power Output History</h2>
-        <canvas id="powerChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <h2>Drive Settings History</h2>
-        <canvas id="driveChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <h2>SWR History</h2>
-        <canvas id="swrChart"></canvas>
-    </div>
-    <script>
-        // Slider value bubble positioning
-        const slider = document.getElementById('targetPowerSlider');
-        const bubble = document.getElementById('sliderValueBubble');
-        const labels = [1, 5, 10, 15, 20, 25];  // Only major ticks
-        const sliderLabels = document.getElementById('sliderLabels');
-        
-        function setBubble() {
-            const val = parseInt(slider.value);
-            const percent = (val - slider.min) / (slider.max - slider.min);
-            bubble.textContent = val + ' W';
             
-            const knobX = percent * (slider.offsetWidth - 16) + 8;
-            let left = knobX - bubble.offsetWidth / 2;
-            // Clamp at edges
-            left = Math.max(0, Math.min(left, slider.offsetWidth - bubble.offsetWidth));
-            bubble.style.left = left + 'px';
+            <div class="slider-container" id="apiKeyContainer">
+                <label for="apiKey">API Key (Optional)</label>
+                <div class="api-key-group" id="apiKeyInput">
+                    <input type="text" id="apiKey" placeholder="Enter API key for remote access">
+                    <button onclick="saveApiKey()">Save</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Desktop Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h2>Power & Drive Level</h2>
+                <div class="chart-container">
+                    <canvas id="combinedChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>SWR</h2>
+                <div class="chart-container">
+                    <canvas id="swrChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Gauges -->
+        <div class="gauges">
+            <div class="gauge-card">
+                <h3>Power</h3>
+                <div class="gauge-value" id="gaugePower">0</div>
+                <div class="gauge-unit">Watts</div>
+            </div>
+            <div class="gauge-card">
+                <h3>Target</h3>
+                <div class="gauge-value" id="gaugeTarget">10</div>
+                <div class="gauge-unit">Watts</div>
+            </div>
+            <div class="gauge-card">
+                <h3>SWR</h3>
+                <div class="gauge-value" id="gaugeSWR">1.0</div>
+                <div class="gauge-unit">Ratio</div>
+            </div>
+            <div class="gauge-card">
+                <h3>Drive</h3>
+                <div class="gauge-value" id="gaugeDrive">0</div>
+                <div class="gauge-unit">Level</div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed'));
         }
         
-        function setLabels() {
-            sliderLabels.innerHTML = '';
-            labels.forEach(label => {
-                const percent = (label - slider.min) / (slider.max - slider.min);
-                const labelX = percent * (slider.offsetWidth - 16) + 8;
-                const span = document.createElement('span');
-                span.textContent = label + 'W';
-                span.style.cssText = `position:absolute;left:${labelX}px;transform:translateX(-50%);font-size:13px;color:#333;`;
-                sliderLabels.appendChild(span);
-            });
+        // Load saved API key
+        const savedApiKey = localStorage.getItem('apiKey');
+        if (savedApiKey) {
+            document.getElementById('apiKey').value = savedApiKey;
+            document.getElementById('apiKeyContainer').style.display = 'none';
+            document.getElementById('gearIcon').style.display = 'flex';
         }
         
-        slider.addEventListener('input', setBubble);
-        window.addEventListener('resize', () => { setBubble(); setLabels(); });
-        setBubble();
-        setLabels();
+        function saveApiKey() {
+            const apiKey = document.getElementById('apiKey').value;
+            if (apiKey) {
+                localStorage.setItem('apiKey', apiKey);
+                document.getElementById('apiKeyContainer').style.display = 'none';
+                document.getElementById('gearIcon').style.display = 'flex';
+            }
+        }
         
-        // Load API key from localStorage
-        const apiKeyInput = document.getElementById('apiKey');
-        const savedApiKey = localStorage.getItem('apiKey') || 'foo';
-        apiKeyInput.value = savedApiKey;
+        function editApiKey() {
+            document.getElementById('apiKeyContainer').style.display = 'block';
+            document.getElementById('gearIcon').style.display = 'none';
+            document.getElementById('apiKey').focus();
+        }
         
-        // Config button to toggle API key input
-        document.getElementById('configBtn').addEventListener('click', () => {
-            const apiKeyGroup = document.getElementById('apiKeyGroup');
-            apiKeyGroup.style.display = apiKeyGroup.style.display === 'none' ? 'block' : 'none';
+        // Power slider
+        const slider = document.getElementById('targetPower');
+        const powerValue = document.getElementById('powerValue');
+        const gaugeTarget = document.getElementById('gaugeTarget');
+        const confirmButton = document.getElementById('confirmPower');
+        let currentRadioPower = 10; // Track current radio power setting
+        let initialLoadComplete = false;
+        
+        slider.addEventListener('input', function() {
+            powerValue.textContent = this.value + ' W';
+            
+            // Position the bubble
+            const percent = (this.value - this.min) / (this.max - this.min);
+            const offset = -20 + (percent * 40); // Adjust for thumb position
+            powerValue.style.left = `calc(${percent * 100}% + ${offset}px)`;
+            
+            // Enable confirm button if value changed
+            if (initialLoadComplete && parseInt(this.value) !== currentRadioPower) {
+                confirmButton.disabled = false;
+            } else {
+                confirmButton.disabled = true;
+            }
         });
         
-        let powerChart, driveChart, swrChart;
-        function initCharts() {
-            const powerCtx = document.getElementById('powerChart').getContext('2d');
-            powerChart = new Chart(powerCtx, {
+        async function confirmPower() {
+            try {
+                const newPower = parseInt(slider.value);
+                const response = await fetch('/api/power', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        target_power: newPower,
+                        api_key: localStorage.getItem('apiKey') || ''
+                    }),
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to update target power');
+                }
+                
+                currentRadioPower = newPower;
+                gaugeTarget.textContent = newPower;
+                confirmButton.disabled = true;
+            } catch (error) {
+                console.error('Error updating target power:', error);
+                alert('Failed to update target power');
+            }
+        }
+        
+        // Chart configuration
+        const chartColors = {
+            power: '#48bb78',
+            target: '#ed8936',
+            drive: '#4299e1',
+            swr: '#f56565'
+        };
+        
+        // Combined Power & Drive Chart (Desktop)
+        const combinedCtx = document.getElementById('combinedChart');
+        let combinedChart = null;
+        
+        if (combinedCtx) {
+            combinedChart = new Chart(combinedCtx, {
                 type: 'line',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: 'Power Output (W)',
-                        data: [],
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                        tension: 0.1
-                    }, {
-                        label: 'Target Power (W)',
-                        data: [],
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                        borderDash: [5, 5],
-                        tension: 0.1
-                    }]
+                    datasets: [
+                        {
+                            label: 'Power (W)',
+                            data: [],
+                            borderColor: chartColors.power,
+                            backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Target (W)',
+                            data: [],
+                            borderColor: chartColors.target,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Drive',
+                            data: [],
+                            borderColor: chartColors.drive,
+                            backgroundColor: 'rgba(66, 153, 225, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: '#a0aec0',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    },
                     scales: {
+                        x: {
+                            display: false
+                        },
                         y: {
-                            beginAtZero: true,
+                            type: 'linear',
+                            position: 'left',
+                            min: 0,
                             title: {
                                 display: true,
-                                text: 'Power (W)'
+                                text: 'Power (W)',
+                                color: '#a0aec0'
+                            },
+                            ticks: {
+                                color: '#a0aec0'
+                            },
+                            grid: {
+                                color: 'rgba(160, 174, 192, 0.1)'
                             }
                         },
-                        x: {
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
                             title: {
                                 display: true,
-                                text: 'Time'
+                                text: 'Drive Level',
+                                color: '#a0aec0'
+                            },
+                            ticks: {
+                                color: '#a0aec0'
+                            },
+                            grid: {
+                                display: false
                             }
                         }
                     }
                 }
             });
-            const driveCtx = document.getElementById('driveChart').getContext('2d');
-            driveChart = new Chart(driveCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Drive Setting',
-                        data: [],
-                        borderColor: 'rgb(153, 102, 255)',
-                        backgroundColor: 'rgba(153, 102, 255, 0.1)',
-                        tension: 0.1,
-                        stepped: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Drive Level'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Time'
-                            }
-                        }
-                    }
-                }
-            });
-            
-            const swrCtx = document.getElementById('swrChart').getContext('2d');
+        }
+        
+        // SWR Chart (Desktop)
+        const swrCtx = document.getElementById('swrChart');
+        let swrChart = null;
+        
+        if (swrCtx) {
             swrChart = new Chart(swrCtx, {
                 type: 'line',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: 'SWR',
-                        data: [],
-                        borderColor: 'rgb(255, 159, 64)',
-                        backgroundColor: 'rgba(255, 159, 64, 0.1)',
-                        tension: 0.1
-                    }]
+                    datasets: [
+                        {
+                            label: 'SWR',
+                            data: [],
+                            borderColor: chartColors.swr,
+                            backgroundColor: 'rgba(245, 101, 101, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'SWR'
-                            }
-                        },
                         x: {
+                            display: false
+                        },
+                        y: {
+                            min: 1.0,
+                            max: 3.0,
                             title: {
                                 display: true,
-                                text: 'Time'
+                                text: 'SWR',
+                                color: '#a0aec0'
+                            },
+                            ticks: {
+                                color: '#a0aec0',
+                                callback: function(value) {
+                                    return value.toFixed(1);
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(160, 174, 192, 0.1)'
                             }
                         }
                     }
                 }
             });
         }
-        function fetchCurrentTarget() {
-            fetch('/api/power')
-                .then(response => response.json())
-                .then(data => document.getElementById('currentTarget').textContent = data.target_power)
-                .catch(error => console.error('Error fetching target power:', error));
-        }
-        function fetchHistory() {
-            fetch('/api/history')
-                .then(response => response.json())
-                .then(data => {
-                    const labels = data.map(item => {
-                        const date = new Date(item.timestamp * 1000);
-                        return date.toLocaleTimeString();
-                    });
-                    const powerData = data.map(item => item.power);
-                    const targetData = data.map(item => item.target);
-                    const driveData = data.map(item => item.drive);
-                    const swrData = data.map(item => item.swr || 0);
+        
+        // Fetch and update data
+        async function updateData() {
+            try {
+                // Fetch power data
+                const powerResponse = await fetch('/api/power');
+                const powerData = await powerResponse.json();
+                
+                // Only update slider from radio on initial load or if not manually changed
+                if (!initialLoadComplete) {
+                    slider.value = powerData.target_power;
+                    currentRadioPower = powerData.target_power;
+                    gaugeTarget.textContent = powerData.target_power;
+                    slider.dispatchEvent(new Event('input'));
+                    initialLoadComplete = true;
+                } else if (parseInt(slider.value) === currentRadioPower) {
+                    // Update only if slider matches current radio setting (no pending changes)
+                    if (powerData.target_power !== currentRadioPower) {
+                        slider.value = powerData.target_power;
+                        currentRadioPower = powerData.target_power;
+                        gaugeTarget.textContent = powerData.target_power;
+                        slider.dispatchEvent(new Event('input'));
+                    }
+                }
+                
+                // Fetch history
+                const historyResponse = await fetch('/api/history');
+                const historyData = await historyResponse.json();
+                
+                if (historyData.length > 0) {
+                    const latest = historyData[historyData.length - 1];
                     
-                    powerChart.data.labels = labels;
-                    powerChart.data.datasets[0].data = powerData;
-                    powerChart.data.datasets[1].data = targetData;
-                    powerChart.update('none');
+                    // Update mobile gauges
+                    document.getElementById('gaugePower').textContent = latest.power.toFixed(1);
+                    document.getElementById('gaugeDrive').textContent = latest.drive;
+                    document.getElementById('gaugeSWR').textContent = latest.swr.toFixed(2);
+                }
+                
+                // Update charts (desktop)
+                if (combinedChart && swrChart) {
+                    const maxPoints = 60;
+                    const labels = historyData.map((_, i) => i);
+                    const powers = historyData.map(d => d.power);
+                    const targets = historyData.map(d => d.target);
+                    const drives = historyData.map(d => d.drive);
+                    const swrs = historyData.map(d => d.swr);
                     
-                    driveChart.data.labels = labels;
-                    driveChart.data.datasets[0].data = driveData;
-                    driveChart.update('none');
+                    // Update combined chart
+                    combinedChart.data.labels = labels.slice(-maxPoints);
+                    combinedChart.data.datasets[0].data = powers.slice(-maxPoints);
+                    combinedChart.data.datasets[1].data = targets.slice(-maxPoints);
+                    combinedChart.data.datasets[2].data = drives.slice(-maxPoints);
+                    combinedChart.update('none');
                     
-                    swrChart.data.labels = labels;
-                    swrChart.data.datasets[0].data = swrData;
+                    // Update SWR chart with dynamic scaling
+                    const maxSWR = Math.max(...swrs, 3.0);
+                    swrChart.options.scales.y.max = Math.ceil(maxSWR * 10) / 10;
+                    swrChart.data.labels = labels.slice(-maxPoints);
+                    swrChart.data.datasets[0].data = swrs.slice(-maxPoints);
                     swrChart.update('none');
-                })
-                .catch(error => {
-                    console.error('Error fetching history:', error);
-                });
+                }
+                
+                // Fetch frequency
+                const freqResponse = await fetch('/api/frequency');
+                const freqData = await freqResponse.json();
+                
+                document.getElementById('frequency').textContent = 
+                    freqData.frequency_mhz.toFixed(3) + ' MHz';
+                document.getElementById('band').textContent = freqData.band;
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
         }
-        document.getElementById('powerForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const messageDiv = document.getElementById('message');
-            const apiKey = apiKeyInput.value;
-            
-            // Save API key to localStorage
-            localStorage.setItem('apiKey', apiKey);
-            
-            fetch('/api/power', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    target_power: parseInt(slider.value),
-                    api_key: apiKey
-                })
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Invalid API key or request failed');
-                return response.json();
-            })
-            .then(data => {
-                fetchCurrentTarget();
-            })
-            .catch(error => {
-                messageDiv.textContent = 'Error: ' + error.message;
-                messageDiv.className = 'message error';
-                messageDiv.style.display = 'block';
-                setTimeout(() => messageDiv.style.display = 'none', 3000);
-            });
-        });
-        initCharts();
-        fetchCurrentTarget();
-        fetchHistory();
-        setInterval(fetchHistory, 2000);
-        setInterval(fetchCurrentTarget, 5000);
+        
+        // Initial update
+        updateData();
+        
+        // Update every 500ms
+        setInterval(updateData, 500);
     </script>
 </body>
 </html>

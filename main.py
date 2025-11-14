@@ -45,8 +45,17 @@ history = deque(maxlen=1000)
 # Learned drive settings: (freq_khz, target_power) -> best_drive
 learned_drives = {}
 
+# Current frequency for API exposure
+current_frequency_hz = 0
+frequency_lock = Lock()
+
 def create_app():
     app = Flask(__name__)
+    
+    # Disable logging for GET requests to API endpoints
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
 
     @app.route('/')
     def index():
@@ -86,8 +95,45 @@ def create_app():
     def get_history():
         with history_lock:
             return jsonify(list(history))
+    
+    @app.route('/api/frequency', methods=['GET'])
+    def get_frequency():
+        with frequency_lock:
+            freq_mhz = current_frequency_hz / 1_000_000
+            band = get_band_name(freq_mhz)
+            return jsonify({
+                'frequency_hz': current_frequency_hz,
+                'frequency_mhz': round(freq_mhz, 6),
+                'band': band
+            })
 
     return app
+
+def get_band_name(freq_mhz):
+    """Convert frequency to ham band name."""
+    if 1.8 <= freq_mhz < 2.0:
+        return "160m"
+    elif 3.5 <= freq_mhz < 4.0:
+        return "80m"
+    elif 5.3 <= freq_mhz < 5.5:
+        return "60m"
+    elif 7.0 <= freq_mhz < 7.3:
+        return "40m"
+    elif 10.1 <= freq_mhz < 10.15:
+        return "30m"
+    elif 14.0 <= freq_mhz < 14.35:
+        return "20m"
+    elif 18.068 <= freq_mhz < 18.168:
+        return "17m"
+    elif 21.0 <= freq_mhz < 21.45:
+        return "15m"
+    elif 24.89 <= freq_mhz < 24.99:
+        return "12m"
+    elif 28.0 <= freq_mhz < 29.7:
+        return "10m"
+    elif 50.0 <= freq_mhz < 54.0:
+        return "6m"
+    return "Unknown"
 
 def send_command(sock, command, prefix="", suffix="", read_response=True):
     """Send a CAT command and optionally read the response."""
@@ -147,7 +193,12 @@ def main(ip, port):
                     freq_response = send_command(sock, 'FA;', "FA", ";")
                     if freq_response:
                         try:
-                            current_freq_khz = int(freq_response) // 1000  # Convert Hz to kHz
+                            freq_hz = int(freq_response)
+                            current_freq_khz = freq_hz // 1000
+                            # Update global frequency for API
+                            global current_frequency_hz
+                            with frequency_lock:
+                                current_frequency_hz = freq_hz
                         except ValueError:
                             pass
                     last_freq_read_time = time.time()
@@ -168,7 +219,6 @@ def main(ip, port):
                     
                     # Read SWR
                     swr_response = send_command(sock, 'ZZRM8;', "ZZRM8", ";")
-                    print(f"SWR: '{swr_response}'")
                     # take '1.3 : 1' and extract '1.3'
                     swr_value_str = swr_response.split(':')[0].strip() if swr_response else "0.0"
                     
